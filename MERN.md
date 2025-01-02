@@ -225,7 +225,7 @@ npm init -y
 
 
 ```bash
-npm install bcrypt connect-mongo cors dotenv ejs express express-session mongoose passport passport-local uuid swagger-ui-express yamljs
+npm install bcrypt connect-mongo cors dotenv ejs express express-session mongoose nodemon passport passport-local uuid swagger-ui-express yamljs
 ```
 
 #### 2. Create the Folder Structure
