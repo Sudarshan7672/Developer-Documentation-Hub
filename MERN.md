@@ -14,7 +14,7 @@ npm install concurrently --save-dev
 ```
 "scripts": {
   "start": "concurrently \"cd frontend && npm install && npm start\" \"cd Admin && npm install && npm start\" \"cd Backend && npm install && nodemon server.js\"",
-  "build": "cd frontend && npm install && npm run build && sudo cp -r dist/* /var/www/html && cd .. && cd Admin && npm install && npm run build && sudo cp -r dist/* /var/www/admin_html && cd .. && cd Backend && npm install && pm2 start server.js --watch"
+  "build": "cd frontend && npm install && npm run build && sudo rm -rf /var/www/html/* && sudo cp -r dist/* /var/www/html && cd ../Admin && npm install && npm run build && sudo rm -rf /var/www/admin_html/* && sudo cp -r dist/* /var/www/admin_html && cd ../Backend && npm install && pm2 start server.js --watch"
 }
 ```
 ```
