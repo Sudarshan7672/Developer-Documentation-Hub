@@ -37,19 +37,34 @@ sudo systemctl status nginx
 ```bash
 ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
 ```
-Press Enter to save the key to the default location `(/home/your-username/.ssh/id_rsa)` and set a passphrase if desired.
+Save the files with the name `id_ed25519` and `id_ed25519.pub` 
+```
+cat id_ed25519  # Check the private key
+cat id_ed25519.pub  # Check the public key
+```
+### Set Permissions:
+Ensure that your private key has the correct permissions:
+```
+chmod 600 id_ed25519
+```
 
 ### Add the SSH key to the SSH agent:
 ```bash
 eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_rsa
+ssh-add ~/id_ed25519 # Adjust path if necessary to the private key
 ```
-
-### Copy the public key to your clipboard:
-```bash
-cat ~/.ssh/id_rsa.pub
+### Add Your Public Key to GitHub:
+Copy the contents of your public key and add it to your GitHub account:
+```
+cat id_ed25519.pub
 ```
 Go to GitHub → `Settings`→ `SSH and GPG Keys `→ `New SSH Key`, then paste the public key and click `Add SSH Key`.
+
+### Test Your Connection:
+Finally, test your SSH connection again:
+```
+ssh -T git@github.com
+```
 
 ## Step 3: Clone the Repository
 ### Clone Your Repository
