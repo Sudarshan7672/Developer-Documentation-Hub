@@ -1,86 +1,208 @@
-# Electron.js with React.js (Vite)
+# MERN Stack with Electron and Vite
 
-This repository demonstrates how to build a desktop application using **Electron.js** with **React.js** and **Vite**.
+This guide will help you set up a **MERN (MongoDB, Express, React, Node.js) stack** with **Electron** for building a desktop application.
 
-## 📌 Prerequisites
-- Node.js (Latest LTS recommended)
-- npm or yarn
-- Basic knowledge of React.js and Electron.js
+## **1. Setup the Backend (Express & MongoDB)**
 
-## 📂 Project Setup
-
-### 1️⃣ Initialize a React Project with Vite
+### **1.1 Initialize a Node.js Project**
 ```sh
-npm create vite@latest electron-react-app --template react
-cd electron-react-app
+mkdir mern-electron-app && cd mern-electron-app
+mkdir backend && cd backend
+npm init -y
+```
+
+### **1.2 Install Dependencies**
+```sh
+npm install express mongoose cors dotenv
+npm install nodemon --save-dev
+```
+
+### **1.3 Setup Express Server**
+Create a new file `backend/server.js` and add the following:
+
+```javascript
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("MongoDB connected"))
+.catch(err => console.error(err));
+
+app.get("/", (req, res) => {
+  res.send("Hello from the backend");
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+### **1.4 Create a `.env` File**
+Create a `.env` file in the backend directory:
+```
+MONGO_URI=your_mongodb_connection_string
+```
+
+### **1.5 Start the Backend Server**
+Modify `package.json` scripts:
+```json
+"scripts": {
+  "start": "node server.js",
+  "dev": "nodemon server.js"
+}
+```
+Run the backend server:
+```sh
+npm run dev
+```
+
+---
+## **2. Setup the Frontend (React + Vite + Electron)**
+
+### **2.1 Create a React Project with Vite**
+```sh
+cd ..
+mkdir frontend && cd frontend
+npm create vite@latest . --template react
 npm install
 ```
 
-### 2️⃣ Install Electron
+### **2.2 Install Electron**
 ```sh
-npm install electron electron-builder --save-dev
+npm install --save-dev electron electron-builder concurrently wait-on
 ```
 
-### 3️⃣ Create `electron/main.js`
-Create an **electron/main.js** file to manage the Electron main process.
+### **2.3 Configure Electron**
+Create `frontend/public/electron.js`:
 
-```js
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
+```javascript
+const { app, BrowserWindow } = require("electron");
+const path = require("path");
 
 let mainWindow;
-
 app.whenReady().then(() => {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
-  mainWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}`);
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  mainWindow.loadURL(
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:5173"
+      : `file://${path.join(__dirname, "../dist/index.html")}`
+  );
 });
 ```
 
-### 4️⃣ Modify `package.json`
-Add an Electron start script inside `package.json`:
-
+### **2.4 Modify `package.json`**
+Modify `frontend/package.json`:
 ```json
-"main": "electron/main.js",
+"main": "public/electron.js",
 "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "electron": "electron .",
-  "electron-dev": "vite build && electron ."
+  "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron public/electron.js\"",
+  "build": "vite build && electron-builder",
+  "electron": "electron public/electron.js"
+},
+"build": {
+  "appId": "com.mern.electron.app",
+  "productName": "MERN Electron App",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "dist/**/*",
+    "public/electron.js"
+  ],
+  "win": {
+    "target": "nsis",
+    "icon": "public/icon.png"
+  }
 }
 ```
 
-### 5️⃣ Run the Application
-Start React:
+### **2.5 Start the Frontend & Electron**
 ```sh
 npm run dev
 ```
-Start Electron:
+
+---
+## **3. Connect Frontend with Backend**
+### **3.1 Install Axios in Frontend**
 ```sh
-npm run electron-dev
+npm install axios
 ```
 
-## 🚀 Build for Production
-To package the app as an executable:
-```sh
-npm run build && npm run electron
+### **3.2 Create an API Service**
+Create `frontend/src/api.js`:
+```javascript
+import axios from "axios";
+
+const API = axios.create({ baseURL: "http://localhost:5000" });
+
+export const fetchData = async () => {
+  const response = await API.get("/");
+  return response.data;
+};
 ```
 
-## 🎯 Features
-- Desktop App using React.js and Vite
-- Fast Development with Vite
-- Simple Electron.js Integration
-- Production Build Packaging
+### **3.3 Fetch Data in React Component**
+Modify `frontend/src/App.jsx`:
+```javascript
+import { useEffect, useState } from "react";
+import { fetchData } from "./api";
 
-## 📜 License
-This project is licensed under the MIT License.
+function App() {
+  const [data, setData] = useState("");
+
+  useEffect(() => {
+    fetchData().then(response => setData(response));
+  }, []);
+
+  return (
+    <div>
+      <h1>Electron + React + Express</h1>
+      <p>Backend says: {data}</p>
+    </div>
+  );
+}
+
+export default App;
+```
+
+### **3.4 Start Both Backend and Frontend**
+In separate terminals:
+```sh
+cd backend && npm run dev
+```
+```sh
+cd frontend && npm run dev
+```
+
+---
+## **4. Build and Package the App**
+```sh
+cd frontend
+npm run build
+npm run electron
+```
+To generate an installer:
+```sh
+npm run build
+```
+
+---
+## **Conclusion**
+You now have a full **MERN stack desktop application** using **Electron** and **Vite**! 🚀
 
