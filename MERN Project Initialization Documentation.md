@@ -448,6 +448,78 @@ exports.isAuthenticated = (req, res, next) => {
 };
 
 ```
+In `db.js` file at root level
+```
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const MongoStore = require('connect-mongo');
+
+// Load environment variables from .env
+dotenv.config();
+
+// MongoDB connection URI from .env
+const MONGO_URI = process.env.DB_URI;
+// console.log(process.env.DB_URI);
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(MONGO_URI, {
+    //   useNewUrlParser: true,
+    //   useUnifiedTopology: true,
+    });
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`❌ Error connecting to MongoDB: ${error.message}`);
+    process.exit(1); // Exit the process with failure
+  }
+};
+
+module.exports = connectDB;
+```
+
+In `userSchema.js` file under `Models` folder
+```
+// models/userSchema.js
+
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+
+// Define the schema
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+}, { timestamps: true });
+
+// Hash password before saving
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Export model
+module.exports = mongoose.model('User', userSchema);
+```
 
 #### 4. Start the Server
 Add the Script
