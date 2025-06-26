@@ -9,7 +9,7 @@ Create a modern desktop application using **Electron**, **Vite**, and **React**,
 ### 1. Create a Vite + React Project
 
 ```bash
-npm create vite@latest electron-vite-app
+npm create vite electron-vite-app
 ```
 
 When prompted:
