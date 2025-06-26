@@ -1,208 +1,225 @@
-# MERN Stack with Electron and Vite
+# 🚀 Electron Vite App
 
-This guide will help you set up a **MERN (MongoDB, Express, React, Node.js) stack** with **Electron** for building a desktop application.
+A modern desktop application built using **Electron**, **Vite**, and **React**. This project combines a fast frontend workflow with desktop app packaging, including `.exe` creation for Windows.
 
-## **1. Setup the Backend (Express & MongoDB)**
+---
 
-### **1.1 Initialize a Node.js Project**
-```sh
-mkdir mern-electron-app && cd mern-electron-app
-mkdir backend && cd backend
-npm init -y
+## 📁 Project Structure
+
 ```
-
-### **1.2 Install Dependencies**
-```sh
-npm install express mongoose cors dotenv
-npm install nodemon --save-dev
-```
-
-### **1.3 Setup Express Server**
-Create a new file `backend/server.js` and add the following:
-
-```javascript
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-
-const app = express();
-app.use(express.json());
-app.use(cors());
-
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("MongoDB connected"))
-.catch(err => console.error(err));
-
-app.get("/", (req, res) => {
-  res.send("Hello from the backend");
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-```
-
-### **1.4 Create a `.env` File**
-Create a `.env` file in the backend directory:
-```
-MONGO_URI=your_mongodb_connection_string
-```
-
-### **1.5 Start the Backend Server**
-Modify `package.json` scripts:
-```json
-"scripts": {
-  "start": "node server.js",
-  "dev": "nodemon server.js"
-}
-```
-Run the backend server:
-```sh
-npm run dev
+electron-vite-app/
+├── dist/                 # Production build output
+├── electron/             # Electron main & preload scripts
+│   ├── main.js
+│   └── preload.js
+├── public/               # Static public assets
+├── src/                  # React source code
+│   ├── main.jsx
+│   └── App.jsx
+├── vite.config.js        # Vite configuration
+├── package.json          # Project metadata and scripts
+└── README.md             # Documentation
 ```
 
 ---
-## **2. Setup the Frontend (React + Vite + Electron)**
 
-### **2.1 Create a React Project with Vite**
-```sh
-cd ..
-mkdir frontend && cd frontend
-npm create vite@latest . --template react
+## 🧱 Tech Stack
+
+- ⚡ [Vite](https://vitejs.dev/) – Lightning-fast frontend bundler
+- ⚛️ [React](https://reactjs.org/) – Component-based frontend
+- 💻 [Electron](https://www.electronjs.org/) – Cross-platform desktop app runtime
+- 📦 [electron-builder](https://www.electron.build/) – Installer and packaging tool
+
+---
+
+## 📦 Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/electron-vite-app.git
+cd electron-vite-app
+```
+
+### 2. Install Dependencies
+
+```bash
 npm install
 ```
 
-### **2.2 Install Electron**
-```sh
-npm install --save-dev electron electron-builder concurrently wait-on
+---
+
+## 🚧 Development
+
+Run the app in development mode with hot reload:
+
+```bash
+npm run dev
 ```
 
-### **2.3 Configure Electron**
-Create `frontend/public/electron.js`:
+- Starts the Vite dev server at `http://localhost:5173`
+- Launches Electron and loads the frontend
 
-```javascript
-const { app, BrowserWindow } = require("electron");
-const path = require("path");
+---
 
-let mainWindow;
-app.whenReady().then(() => {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
+## 🛠 Build & Package
 
-  mainWindow.loadURL(
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:5173"
-      : `file://${path.join(__dirname, "../dist/index.html")}`
-  );
+### 1. Build the Frontend
+
+```bash
+npm run build
+```
+
+### 2. Package the App for Windows (.exe)
+
+```bash
+npm run make:win
+```
+
+This uses `electron-builder` to create:
+
+- 📂 `dist/win-unpacked/` – Portable version (no install required)
+- 📦 `dist/YourApp Setup.exe` – Installer file
+
+> If you encounter permission issues or symbolic link errors, run your terminal as **Administrator**.
+
+---
+
+## 🧪 Test the Final App
+
+- **Portable version**:  
+  Run `dist/win-unpacked/YourApp.exe`
+
+- **Installer version**:  
+  Run the generated `.exe` installer
+
+---
+
+## 🔧 Configuration
+
+### vite.config.js
+
+```js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  base: './', // Important for Electron compatibility
+  plugins: [react()],
 });
 ```
 
-### **2.4 Modify `package.json`**
-Modify `frontend/package.json`:
+### electron/main.js
+
+```js
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const isDev = !app.isPackaged;
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  if (isDev) {
+    win.loadURL('http://localhost:5173');
+  } else {
+    win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+app.whenReady().then(createWindow);
+```
+
+### package.json (build section)
+
 ```json
-"main": "public/electron.js",
-"scripts": {
-  "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron public/electron.js\"",
-  "build": "vite build && electron-builder",
-  "electron": "electron public/electron.js"
-},
+"main": "electron/main.js",
 "build": {
-  "appId": "com.mern.electron.app",
-  "productName": "MERN Electron App",
+  "appId": "com.example.electronvite",
+  "productName": "ElectronViteApp",
+  "files": [
+    "dist/",
+    "electron/"
+  ],
   "directories": {
     "output": "dist"
   },
-  "files": [
-    "dist/**/*",
-    "public/electron.js"
-  ],
   "win": {
-    "target": "nsis",
-    "icon": "public/icon.png"
+    "target": "nsis"
   }
 }
 ```
 
-### **2.5 Start the Frontend & Electron**
-```sh
-npm run dev
+---
+
+## 🧰 Common Issues & Fixes
+
+### 🔸 `Cannot load preload.js`
+
+Ensure `preload.js` exists and is referenced correctly:
+
+```js
+preload: path.join(__dirname, 'preload.js')
 ```
+
+Also make sure `electron/` is included in `build.files`.
 
 ---
-## **3. Connect Frontend with Backend**
-### **3.1 Install Axios in Frontend**
-```sh
-npm install axios
+
+### 🔸 `GET file:///assets/index-XYZ.js not found`
+
+Fix by setting:
+
+```js
+base: './'
 ```
 
-### **3.2 Create an API Service**
-Create `frontend/src/api.js`:
-```javascript
-import axios from "axios";
-
-const API = axios.create({ baseURL: "http://localhost:5000" });
-
-export const fetchData = async () => {
-  const response = await API.get("/");
-  return response.data;
-};
-```
-
-### **3.3 Fetch Data in React Component**
-Modify `frontend/src/App.jsx`:
-```javascript
-import { useEffect, useState } from "react";
-import { fetchData } from "./api";
-
-function App() {
-  const [data, setData] = useState("");
-
-  useEffect(() => {
-    fetchData().then(response => setData(response));
-  }, []);
-
-  return (
-    <div>
-      <h1>Electron + React + Express</h1>
-      <p>Backend says: {data}</p>
-    </div>
-  );
-}
-
-export default App;
-```
-
-### **3.4 Start Both Backend and Frontend**
-In separate terminals:
-```sh
-cd backend && npm run dev
-```
-```sh
-cd frontend && npm run dev
-```
+in your `vite.config.js`.
 
 ---
-## **4. Build and Package the App**
-```sh
-cd frontend
-npm run build
-npm run electron
-```
-To generate an installer:
-```sh
-npm run build
-```
+
+### 🔸 `EBUSY: resource busy or locked`
+
+Make sure the app is **not running** while building.
+- Close any running `.exe`
+- Exit File Explorer windows in the `dist/` directory
+- Try again or restart terminal as Administrator
 
 ---
-## **Conclusion**
-You now have a full **MERN stack desktop application** using **Electron** and **Vite**! 🚀
 
+## 📤 Distributing the App
+
+### Option 1: Share the Installer
+
+- Zip the file: `dist/YourApp Setup 1.0.0.exe`
+- Share via Google Drive, Dropbox, etc.
+
+### Option 2: Share the Portable App
+
+- Zip the folder: `dist/win-unpacked`
+- Friend can run `YourApp.exe` directly (no install)
+
+---
+
+## 📌 Extras
+
+Want to customize your build?
+
+- Add icons
+- Create a splash screen
+- Add auto-launch at startup
+- Add system tray integration
+- Add auto-updates
+
+Let me know, and I’ll help you set it up!
+
+---
+
+## 📝 License
+
+This project is licensed under the [MIT License](LICENSE).
