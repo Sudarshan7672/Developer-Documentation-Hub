@@ -136,7 +136,7 @@ Website Name
 To create a new Vite project, run the following commands:
 
 ```bash
-npm create vite@latest
+npm create vite
 ```
 
 ```bash
@@ -151,36 +151,28 @@ npm install
 #### 1. Install Tailwind CSS and its dependencies:
 
 ```bash
-npm install -D tailwindcss postcss autoprefixer
+npm install tailwindcss @tailwindcss/vite
 ```
 
-```bash
-npx tailwindcss init -p
-```
-#### 2. Configure your template paths by updating the `tailwind.config.js` file:
+#### 2. Configure your template paths by updating the `vite.config.js` file:
 
 ```javascript
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react(),tailwindcss()],
+})
 ```
 
 #### 3. Add Tailwind Directives to CSS
 
-Add the `@tailwind` directives for each layer to your `./src/index.css` file:
+Add the `@tailwind` directives for each layer to your `./src/app.css` file:
 
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 ```
 
 #### 4. Start the Development Server
@@ -225,7 +217,7 @@ npm init -y
 
 
 ```bash
-npm install bcrypt connect-mongo cors dotenv ejs express express-session mongoose nodemon passport passport-local uuid swagger-ui-express yamljs
+npm install bcrypt connect-mongo cors dotenv ejs express express-session mongoose nodemon passport passport-local uuid swagger-ui-express yamljs morgan
 ```
 
 #### 2. Create the Folder Structure
@@ -239,30 +231,30 @@ backend/
 ├── controllers/
 │   └── exampleController.js
 ├── models/
-│   └── exampleModel.js
+│   └── userSchema.js
 ├── routes/
 │   └── exampleRoutes.js
 ├── middleware/
 │   └── authMiddleware.js
 ├── utils/
 │   └── helper.js
-├── Server.js
+├── server.js
+├── swagger.yaml
+├── passportconfig.js
 |-- .env
 └── package.json
 ```
 
 ## Step 3: Create the Entry Point
 
-In `Server.js`, set up the basic Express server:
+In `server.js`, set up the basic Express server:
 
 ```javascript
 // Import dependencies
 const express = require('express');
 const path = require('path');
-const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
-const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const swaggerUi = require('swagger-ui-express');
@@ -313,7 +305,7 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: mongostore.create({
+    store: MongoStore.create({
       mongoUrl: process.env.DB_URI,
       collectionName: "sessions",
     }),
@@ -344,8 +336,8 @@ app.get('/api', (req, res) => {
 });
 
 // Add API routes for different services (Admin, Backend, etc.)
-app.use('/api/admin', require('./Backend/routes/adminRoutes')); // Example backend route
-app.use('/api/frontend', require('./Frontend/routes/frontendRoutes')); // Example frontend route
+// app.use('/api/admin', require('./Backend/routes/adminRoutes')); // Example backend route
+// app.use('/api/frontend', require('./Frontend/routes/frontendRoutes')); // Example frontend route
 
 // Handle 404 errors
 app.use((req, res, next) => {
@@ -370,13 +362,13 @@ PORT = 8080
 SECRET_KEY = 
 SESSION_SECRET = 
 ```
-In `passportconfig.js` use 
+In `passportconfig.js` update the code
 ```
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const bcrypt = require("bcrypt");
 const { session } = require("passport");
-const User = require("./models/userschema"); // Assuming your schema is named "userschema"
+const User = require("./models/userSchema"); // Assuming your schema is named "userschema"
 
 exports.initializingPassport = (passport) => {
 passport.use(
@@ -448,7 +440,7 @@ exports.isAuthenticated = (req, res, next) => {
 };
 
 ```
-In `db.js` file at root level
+In `db.js` file at root level update the code
 ```
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -478,7 +470,7 @@ const connectDB = async () => {
 module.exports = connectDB;
 ```
 
-In `userSchema.js` file under `Models` folder
+In `userSchema.js` file under `Models` folder update the code
 ```
 // models/userSchema.js
 
@@ -519,6 +511,31 @@ userSchema.methods.comparePassword = function (candidatePassword) {
 
 // Export model
 module.exports = mongoose.model('User', userSchema);
+```
+
+In `swagger.yaml` file update
+```
+openapi: 3.0.0
+info:
+  title: Simple API
+  version: 1.0.0
+  description: A basic API that confirms it's working.
+paths:
+  /api:
+    get:
+      summary: Check API status
+      description: Returns a simple message to confirm the API is working.
+      responses:
+        '200':
+          description: API is working response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: API is working!
 ```
 
 #### 4. Start the Server
