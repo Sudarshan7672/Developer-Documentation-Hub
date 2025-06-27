@@ -32,18 +32,30 @@ npm install --save-dev electron concurrently wait-on electron-builder
 
 ---
 
-### 3. Setup Project Structure
+## 📁 Project Structure
 
-Create a folder for Electron:
-
-```bash
-mkdir electron
+```
+electron-vite-app/
+├── build/                  # Custom NSIS scripts
+│   └── installer.nsh
+├── electron/               # Electron main and preload
+│   ├── main.cjs
+│   └── preload.js
+├── public/
+├── src/
+├── dist/                   # Built output
+├── package.json
+└── vite.config.js
 ```
 
-#### Create `electron/main.js`
+---
+
+## 🧱 Setup Electron
+
+### Create `electron/main.cjs`
 
 ```js
-// electron/main.js
+// electron/main.cjs
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
@@ -67,7 +79,9 @@ function createWindow() {
 app.whenReady().then(createWindow);
 ```
 
-#### Create `electron/preload.js`
+---
+
+### Create `electron/preload.js`
 
 ```js
 // electron/preload.js
@@ -82,31 +96,44 @@ contextBridge.exposeInMainWorld('api', {
 
 ## ⚙️ Configuration
 
-### 4. Update `vite.config.js`
+### `vite.config.js`
 
 ```js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: './', // For Electron compatibility
+  base: './',
   plugins: [react()],
 });
 ```
 
 ---
 
-### 5. Update `package.json`
+### Updated `package.json`
 
-Add scripts and build config:
-
-```jsonc
+```json
 {
-  "main": "electron/main.js",
+  "name": "electron-vite-app",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "make:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.1",
+    "vite": "^6.3.5",
+    "@vitejs/plugin-react": "^4.0.3",
+    "wait-on": "^7.0.1"
   },
   "build": {
     "appId": "com.example.electronvite",
@@ -120,10 +147,46 @@ Add scripts and build config:
     },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "include": "build/installer.nsh"
     }
   }
 }
 ```
+
+---
+
+## 🔐 Add Product Key Check (NSIS)
+
+### 1. Create `build/installer.nsh`
+
+```nsh
+!macro customInit
+
+  nsDialogs::Create 1018
+  Pop $Dialog
+  ${If} $Dialog == error
+    Abort
+  ${EndIf}
+
+  nsDialogs::CreateControl EDITTEXT ${WS_VISIBLE}|${WS_BORDER}|${ES_AUTOHSCROLL} 0 0 80% 12u 10u "Enter product key:"
+  Pop $HWND
+  nsDialogs::Show
+  Pop $0
+
+  StrCpy $R0 $0
+
+  ; Replace this with your actual valid key
+  ${If} $R0 != "ABC-123-XYZ"
+    MessageBox MB_ICONSTOP "Invalid product key. Installation will be aborted."
+    Abort
+  ${EndIf}
+
+!macroend
+```
+
+> 💡 You can store valid keys in an encrypted file or check online with more advanced logic.
 
 ---
 
@@ -141,7 +204,7 @@ npm run dev
 npm run build
 ```
 
-### Package for Windows
+### Create Windows Installer with Product Key Check
 
 ```bash
 npm run make:win
@@ -153,7 +216,7 @@ npm run make:win
 
 ### `ENOENT: preload.js not found`
 
-Ensure you reference preload using:
+Make sure `preload` is referenced correctly:
 
 ```js
 preload: path.join(__dirname, 'preload.js')
@@ -161,28 +224,27 @@ preload: path.join(__dirname, 'preload.js')
 
 ### `ERR_FILE_NOT_FOUND` for JS/CSS
 
-Fix with:
+Ensure `vite.config.js` contains:
 
 ```js
 base: './'
 ```
 
-in `vite.config.js`.
-
 ### `EBUSY` during build
 
 - Close any running `.exe`
-- Exit Explorer windows in `dist/`
-- Run terminal as Administrator
+- Close File Explorer in `dist/`
+- Run your terminal as **Administrator**
 
 ---
 
 ## 📤 Share with Friends
 
-- Installer: Share `dist/ElectronViteApp Setup.exe`
-- Portable: Share `dist/win-unpacked/` and tell them to run `YourApp.exe`
+- Share `dist/ElectronViteApp Setup.exe` (installer)
+- Or zip and share `dist/win-unpacked/` for portable use
 
-If SmartScreen warns, tell them to click **"More info > Run anyway"**.
+If Windows SmartScreen shows a warning, advise users to click:
+**More info → Run anyway**
 
 ---
 
