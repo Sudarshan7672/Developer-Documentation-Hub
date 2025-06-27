@@ -84,7 +84,7 @@ app.whenReady().then(createWindow);
 
 ---
 
-### Create `electron/preload.js`
+### Create `electron/preload.cjs`
 
 ```js
 // electron/preload.js
@@ -197,7 +197,7 @@ FunctionEnd
 
 Function ProductKeyPageLeave
   ${NSD_GetText} $InputField $R0
-  ${If} $R0 != "shubhamshravani"
+  ${If} $R0 != "YOUR_KEY"
     MessageBox MB_ICONSTOP "Invalid product key. Setup will now exit."
     Abort
   ${EndIf}
