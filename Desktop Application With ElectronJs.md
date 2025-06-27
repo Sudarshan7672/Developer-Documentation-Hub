@@ -5,6 +5,9 @@ Create a modern desktop application using **Electron**, **Vite**, and **React**,
 ---
 
 ## 🚀 Project Setup
+---
+Note - Don't apply tailwind until all steps are completed successfully
+---
 
 ### 1. Create a Vite + React Project
 
@@ -149,8 +152,11 @@ export default defineConfig({
       "target": "nsis"
     },
     "nsis": {
-      "include": "build/installer.nsh"
-    }
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "include": "build/installer.nsh"
+  }
   }
 }
 ```
@@ -162,28 +168,40 @@ export default defineConfig({
 ### 1. Create `build/installer.nsh`
 
 ```nsh
-!macro customInit
+!include "MUI2.nsh"
+!include "LogicLib.nsh"
+!include "nsDialogs.nsh"
 
+Var InputField
+Var Label
+
+# 🧩 Attach both page & leave function
+Page custom ProductKeyPage ProductKeyPageLeave
+
+Function ProductKeyPage
   nsDialogs::Create 1018
-  Pop $Dialog
-  ${If} $Dialog == error
-    Abort
-  ${EndIf}
-
-  nsDialogs::CreateControl EDITTEXT ${WS_VISIBLE}|${WS_BORDER}|${ES_AUTOHSCROLL} 0 0 80% 12u 10u "Enter product key:"
-  Pop $HWND
-  nsDialogs::Show
   Pop $0
-
-  StrCpy $R0 $0
-
-  ; Replace this with your actual valid key
-  ${If} $R0 != "ABC-123-XYZ"
-    MessageBox MB_ICONSTOP "Invalid product key. Installation will be aborted."
+  ${If} $0 == error
+    MessageBox MB_ICONSTOP "Failed to create dialog"
     Abort
   ${EndIf}
 
-!macroend
+  ${NSD_CreateLabel} 0u 0u 100% 12u "Enter your product key to continue installation:"
+  Pop $Label
+
+  ${NSD_CreateText} 0u 14u 100% 12u ""
+  Pop $InputField
+
+  nsDialogs::Show
+FunctionEnd
+
+Function ProductKeyPageLeave
+  ${NSD_GetText} $InputField $R0
+  ${If} $R0 != "shubhamshravani"
+    MessageBox MB_ICONSTOP "Invalid product key. Setup will now exit."
+    Abort
+  ${EndIf}
+FunctionEnd
 ```
 
 > 💡 You can store valid keys in an encrypted file or check online with more advanced logic.
