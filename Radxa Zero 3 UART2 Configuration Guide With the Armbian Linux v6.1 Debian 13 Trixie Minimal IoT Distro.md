@@ -1,6 +1,7 @@
 # Radxa Zero 3 UART2 Configuration Guide
 
 Complete step-by-step guide to enable and use UART2 on Radxa Zero 3 (RK3566)
+Os Image Link - https://www.armbian.com/radxa-zero-3/
 
 ---
 
