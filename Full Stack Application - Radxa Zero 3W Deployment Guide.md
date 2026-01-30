@@ -684,7 +684,7 @@ fi
 ### Enable UART Communication
 
 If your hardware uses UART for communication:
-
+If Using the Radxa's Official Image
 ```bash
 sudo resetup
 ```
@@ -692,6 +692,15 @@ sudo resetup
 Then navigate: **Overlays → Manage Overlays → Select UART2 M0 → Exit**
 
 ---
+
+If using third party armbian Image
+```bash
+sudo nano /boot/armbianEnv.txt
+```
+add
+```bash
+overlays=uart1
+```
 
 ## 6. Final Deployment Steps
 
@@ -721,8 +730,14 @@ If you have LightDM or another display manager running, disable it:
 sudo systemctl stop lightdm
 sudo systemctl disable lightdm
 ```
-
-5. **Complete System Reboot**
+5. **Disable the Getty Service to avoid ttyS' Port Conflict**
+```bash
+sudo systemctl stop serial-getty@ttyS2.service
+sudo systemctl disable serial-getty@ttyS2.service
+sudo systemctl mask serial-getty@ttyS2.service
+```
+   
+6. **Complete System Reboot**
 
 ```bash
 sudo reboot
