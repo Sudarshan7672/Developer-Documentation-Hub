@@ -730,6 +730,12 @@ If you have LightDM or another display manager running, disable it:
 sudo systemctl stop lightdm
 sudo systemctl disable lightdm
 ```
+If you have gdm3 or another display manager running, disable it:
+
+```bash
+sudo systemctl stop gdm3
+sudo systemctl disable gdm3
+```
 5. **Disable the Getty Service to avoid ttyS' Port Conflict**
 ```bash
 sudo systemctl stop serial-getty@ttyS2.service
