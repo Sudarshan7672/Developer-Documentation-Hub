@@ -627,7 +627,10 @@ main
 sudo chmod +x update.sh
 cd ..
 ```
-
+**Sometime the Ping is not permitted on Some OS. For ping permissions run this comnmand**
+```bash
+sudo setcap cap_net_rawtp /bin/ping
+```
 ---
 
 ## 5. System Configuration
