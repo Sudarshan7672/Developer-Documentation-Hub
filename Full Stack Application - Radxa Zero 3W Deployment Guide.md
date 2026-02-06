@@ -37,6 +37,7 @@ sudo apt install -y \
   zlib1g \
   zlib1g-dev \
   build-essential \
+  mesa-utils \
   fuse \
   --no-install-recommends
 ```
@@ -52,7 +53,7 @@ sudo apt install -y \
 Grant the `radxa` user access to display, serial ports, and input devices:
 
 ```bash
-sudo usermod -aG tty,video,dialout,input radxa
+sudo usermod -aG tty,video,dialout,input,render radxa
 ```
 
 ---
@@ -113,9 +114,9 @@ echo "$(date -Is) [INFO] Launching frontend AppImage" >> "$LOGFILE"
 
 # Launch Electron AppImage with hardware acceleration disabled
 exec /home/radxa/frontend/current_frontend.AppImage \
-  --disable-gpu \
-  --disable-software-rasterizer \
-  --no-sandbox \
+  --use-gl=egl \
+  --enable-gpu-rasterization \
+  --no-sandbox
   >> "$LOGFILE" 2>&1
 ```
 
@@ -306,6 +307,11 @@ TEMP_DIR="/tmp/luxegenie_update"
 SERVICE_NAME="app.service"
 FRONTEND_SERVICE="kiosk.service"
 BACKEND_SERVICE="backend.service"
+SPLASH_IMAGE="/home/radxa/splash/update.png"
+FB_SPLASH_PID=""
+ACTIVE_TTY=""
+SPLASH_TTY=""
+
 
 # Logging function
 log() {
@@ -370,6 +376,7 @@ create_directories() {
     mkdir -p "$FRONTEND_BACKUP_DIR"
     mkdir -p "$BACKEND_BACKUP_DIR"
     mkdir -p "$TEMP_DIR"
+    mkdir -p "$(dirname "$SPLASH_HTML")"
     log "Directories verified/created"
 }
 
@@ -389,7 +396,6 @@ get_local_version() {
 check_updates() {
     log "Checking for updates from server..."
     
-    # Download update information
     RESPONSE=$(curl -s "$UPDATE_URL")
     
     if [ -z "$RESPONSE" ]; then
@@ -398,7 +404,6 @@ check_updates() {
     
     log "Update response received"
     
-    # Parse JSON response
     REMOTE_VERSION=$(echo "$RESPONSE" | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
     FRONTEND_URL=$(echo "$RESPONSE" | grep -o '"frontend_url":"[^"]*"' | cut -d'"' -f4)
     BACKEND_URL=$(echo "$RESPONSE" | grep -o '"backend_url":"[^"]*"' | cut -d'"' -f4)
@@ -407,7 +412,6 @@ check_updates() {
     
     log "Remote version: $REMOTE_VERSION"
     
-    # Compare versions
     if [ "$LOCAL_VERSION" = "$REMOTE_VERSION" ]; then
         log "Already running the latest version ($LOCAL_VERSION). No update needed."
         cleanup
@@ -421,7 +425,6 @@ check_updates() {
 backup_current() {
     log "Backing up current files..."
     
-    # Backup frontend
     if [ -f "$FRONTEND_DIR/current_frontend.AppImage" ]; then
         log "Backing up frontend..."
         cp "$FRONTEND_DIR/current_frontend.AppImage" "$FRONTEND_BACKUP_DIR/previous_frontend.AppImage"
@@ -430,7 +433,6 @@ backup_current() {
         log "No existing frontend to backup"
     fi
     
-    # Backup backend
     if [ -f "$BACKEND_DIR/current_backend" ]; then
         log "Backing up backend..."
         cp "$BACKEND_DIR/current_backend" "$BACKEND_BACKUP_DIR/previous_backend"
@@ -446,20 +448,17 @@ download_frontend() {
     
     cd "$TEMP_DIR"
     
-    # Download frontend
     if ! wget -q --show-progress "$FRONTEND_URL" -O frontend.tar.gz; then
         error_exit "Failed to download frontend"
     fi
     
     log "Frontend downloaded successfully"
     
-    # Extract tar.gz
     log "Extracting frontend..."
     if ! tar -xzf frontend.tar.gz; then
         error_exit "Failed to extract frontend archive"
     fi
     
-    # Find the extracted AppImage file
     FRONTEND_FILE=$(find . -maxdepth 1 -name "*.AppImage" -type f | head -1)
     
     if [ -z "$FRONTEND_FILE" ]; then
@@ -468,7 +467,6 @@ download_frontend() {
     
     log "Frontend extracted: $FRONTEND_FILE"
     
-    # Verify checksum
     log "Verifying frontend checksum..."
     CALCULATED_CHECKSUM=$(sha256sum "$FRONTEND_FILE" | awk '{print $1}')
     
@@ -481,7 +479,6 @@ download_frontend() {
     
     log "Frontend checksum verified successfully"
     
-    # Move to destination
     log "Installing new frontend..."
     cp "$FRONTEND_FILE" "$FRONTEND_DIR/current_frontend.AppImage"
     chmod +x "$FRONTEND_DIR/current_frontend.AppImage"
@@ -492,25 +489,21 @@ download_frontend() {
 download_backend() {
     log "Downloading backend from: $BACKEND_URL"
 
-    # Create isolated backend temp dir
     BACKEND_TMP_DIR="$TEMP_DIR/backend"
     rm -rf "$BACKEND_TMP_DIR"
     mkdir -p "$BACKEND_TMP_DIR"
     cd "$BACKEND_TMP_DIR"
 
-    # Download backend archive
     if ! wget -q --show-progress "$BACKEND_URL" -O backend.tar.gz; then
         error_exit "Failed to download backend"
     fi
     log "Backend downloaded successfully"
 
-    # Extract backend
     log "Extracting backend archive..."
     if ! tar -xzf backend.tar.gz; then
         error_exit "Failed to extract backend archive"
     fi
 
-    # Find backend executable (ELF, but NOT AppImage)
     BACKEND_FILE=$(find . -maxdepth 1 -type f -exec file {} \; \
         | grep -E 'ELF .* executable' \
         | grep -v 'AppImage' \
@@ -523,7 +516,6 @@ download_backend() {
 
     log "Backend executable found: $BACKEND_FILE"
 
-    # Verify backend checksum
     log "Verifying backend checksum..."
     CALCULATED_CHECKSUM=$(sha256sum "$BACKEND_FILE" | awk '{print $1}')
 
@@ -536,7 +528,6 @@ download_backend() {
 
     log "Backend checksum verified successfully"
 
-    # Install backend
     log "Installing new backend..."
     cp "$BACKEND_FILE" "$BACKEND_DIR/current_backend"
     chmod +x "$BACKEND_DIR/current_backend"
@@ -550,11 +541,29 @@ update_version_file() {
     log "Version file updated"
 }
 
-# Restart service
+# Stop services before update
+stop_services() {
+    log "Stopping services before update..."
+
+    if systemctl list-unit-files | grep -q "$FRONTEND_SERVICE"; then
+        log "Stopping $FRONTEND_SERVICE..."
+        systemctl stop "$FRONTEND_SERVICE" && log "$FRONTEND_SERVICE stopped successfully" \
+        || log "WARNING: Failed to stop $FRONTEND_SERVICE"
+    fi
+
+    if systemctl list-unit-files | grep -q "$BACKEND_SERVICE"; then
+        log "Stopping $BACKEND_SERVICE..."
+        systemctl stop "$BACKEND_SERVICE" && log "$BACKEND_SERVICE stopped successfully" \
+        || log "WARNING: Failed to stop $BACKEND_SERVICE"
+    fi
+
+    sleep 2
+}
+
+# Restart services
 restart_services() {
     log "Restarting services..."
 
-    # Restart backend first
     if systemctl list-unit-files | grep -q "$BACKEND_SERVICE"; then
         log "Restarting $BACKEND_SERVICE..."
         systemctl restart "$BACKEND_SERVICE" && log "$BACKEND_SERVICE restarted successfully" \
@@ -563,7 +572,6 @@ restart_services() {
         log "WARNING: $BACKEND_SERVICE not found"
     fi
 
-    # Restart frontend (kiosk)
     if systemctl list-unit-files | grep -q "$FRONTEND_SERVICE"; then
         log "Restarting $FRONTEND_SERVICE..."
         systemctl restart "$FRONTEND_SERVICE" && log "$FRONTEND_SERVICE restarted successfully" \
@@ -573,45 +581,119 @@ restart_services() {
     fi
 }
 
+# Show splash screen
+show_splash() {
+    log "Preparing framebuffer splash..."
+
+    if [ ! -f "$SPLASH_IMAGE" ]; then
+        log "WARNING: Splash image not found"
+        return 0
+    fi
+
+    detect_active_tty
+
+    SPLASH_TTY=2
+    [ "$ACTIVE_TTY" = "2" ] && SPLASH_TTY=3
+
+    log "Switching to splash TTY: tty$SPLASH_TTY"
+    chvt "$SPLASH_TTY" 2>/dev/null || true
+
+    pkill -f fbi 2>/dev/null || true
+
+    # Keep fbi alive explicitly
+    (
+        while true; do
+            fbi -T "$SPLASH_TTY" -d /dev/fb0 \
+                --noverbose \
+                --autozoom \
+                "$SPLASH_IMAGE" \
+                </dev/tty"$SPLASH_TTY" >/dev/null 2>&1
+            sleep 1
+        done
+    ) &
+
+    FB_SPLASH_PID=$!
+    log "Splash locked on tty$SPLASH_TTY (PID: $FB_SPLASH_PID)"
+}
+
+
+# Hide splash screen
+hide_splash() {
+    log "Hiding splash screen..."
+
+    [ -n "$FB_SPLASH_PID" ] && kill "$FB_SPLASH_PID" 2>/dev/null || true
+    pkill -f fbi 2>/dev/null || true
+
+    if [ -n "$ACTIVE_TTY" ]; then
+        log "Restoring original TTY: tty$ACTIVE_TTY"
+        chvt "$ACTIVE_TTY" 2>/dev/null || true
+    fi
+}
+
+# Verify Services
+verify_services() {
+    log "Verifying services health..."
+
+    systemctl is-active --quiet "$BACKEND_SERVICE" \
+        || error_exit "Backend service is not running"
+
+    systemctl is-active --quiet "$FRONTEND_SERVICE" \
+        || error_exit "Frontend service is not running"
+
+    log "All services are running correctly"
+}
+
+detect_active_tty() {
+    ACTIVE_TTY=$(fgconsole 2>/dev/null || echo 1)
+    log "Active display TTY: tty$ACTIVE_TTY"
+}
+
+reboot_device() {
+    log "Rebooting device to apply update..."
+    sync
+    sleep 2
+    reboot
+}
+
+
+
 # Main execution
 main() {
     log "=========================================="
     log "LuxeGenie Update Script Started"
     log "=========================================="
     
-    # Step 1: Check internet
     check_internet
-    
-    # Step 2: Create directories
     create_directories
-    
-    # Step 3: Get local version
     get_local_version
-    
-    # Step 4: Check for updates
     check_updates
     
-    # Step 5: Backup current files
+    # Show splash screen BEFORE stopping services
+    show_splash
+    
     backup_current
+    stop_services
     
-    # Step 6 & 7: Download and install updates
-    # Using trap to handle errors and rollback
-    trap 'rollback; error_exit "Update failed, rolled back to previous version"' ERR
+    trap 'log "Update failed. Rolling back..."; hide_splash; rollback; reboot_device' ERR
     
+    log "Downloading frontend..."
     download_frontend
+    
+    log "Downloading backend..."
     download_backend
     
-    # Disable trap after successful downloads
+    log "Finalizing update..."
     trap - ERR
     
-    # Step 8: Update version file
     update_version_file
     
-    # Step 9: Restart service
-    restart_services
+    log "Restarting services..."
+    hide_splash
     
-    # Cleanup
+    restart_services
+    verify_services
     cleanup
+    reboot_device
     
     log "=========================================="
     log "Update completed successfully!"
@@ -627,6 +709,24 @@ main
 sudo chmod +x update.sh
 cd ..
 ```
+**Create a directory and add the update splash image**
+```bash
+sudo mkdir -p /home/radxa/splash
+sudo chown -R radxa:radxa /home/radxa/splash
+```
+Example Path
+```bash
+/home/radxa/splash/update.png
+```
+Copy the image from your local machine to the remote via ssh
+```bash
+scp /path/to/update.png radxa@<RADXA_IP>:/home/radxa/splash/update.png
+```
+Example
+```bash
+scp ~/Downloads/update.png radxa@192.168.1.:/home/radxa/splash/update.png
+```
+
 **Sometime the Ping is not permitted on Some OS. For ping permissions run this comnmand**
 ```bash
 sudo setcap cap_net_rawtp /bin/ping
@@ -704,6 +804,74 @@ add
 ```bash
 overlays=uart1
 ```
+---
+
+If using the rockchip-ubuntu image then manage the overlay tree manually
+Follow the steps - 
+**Identify the active DTB file**
+```bash
+uname -r
+ls /lib/firmware/$(uname -r)/device-tree/rockchip | grep radxa-zero3
+```
+You should see something like this
+```bash
+rk3566-radxa-zero3.dtb
+```
+**Back up the original DTB (IMPORTANT)**
+```bash
+sudo cp /lib/firmware/$(uname -r)/device-tree/rockchip/rk3566-radxa-zero3.dtb \
+/lib/firmware/$(uname -r)/device-tree/rockchip/rk3566-radxa-zero3.dtb.bak
+```
+**Convert DTB → DTS**
+```bash
+dtc -I dtb -O dts \
+-o ~/rk3566-radxa-zero3.dts \
+/lib/firmware/$(uname -r)/device-tree/rockchip/rk3566-radxa-zero3.dtb
+```
+**Edit the DTS to enable UART2 (pins 6/8/10)**
+```bash
+nano ~/rk3566-radxa-zero3.dts
+```
+**Find this node:**
+```bash
+serial@fe660000 {
+```
+**edit it to exactly this:**
+```bash
+serial@fe660000 {
+    compatible = "rockchip,rk3568-uart", "snps,dw-apb-uart";
+    reg = <0x00 0xfe660000 0x00 0x100>;
+    interrupts = <0x00 0x76 0x04>;
+    clocks = <0x23 0x120 0x23 0x11c>;
+    clock-names = "baudclk", "apb_pclk";
+    reg-shift = <0x02>;
+    reg-io-width = <0x04>;
+    pinctrl-names = "default";
+    pinctrl-0 = <0xe9>;   /* uart2m0-xfer */
+    status = "okay";
+};
+```
+**Compile DTS → DTB**
+```bash
+dtc -I dts -O dtb \
+-o ~/rk3566-radxa-zero3-fixed.dtb \
+~/rk3566-radxa-zero3.dts
+```
+**Install the fixed DTB**
+```bash
+sudo cp ~/rk3566-radxa-zero3-fixed.dtb \
+/lib/firmware/$(uname -r)/device-tree/rockchip/rk3566-radxa-zero3.dtb
+```
+**Remove UART console from boot args (CRITICAL)**
+```bash
+sudo nano /boot/extlinux/extlinux.conf
+```
+```bash
+Change:
+console=ttyS2,1500000 console=tty1
+To:
+console=tty1
+```
 
 ## 6. Final Deployment Steps
 
@@ -725,7 +893,14 @@ After completing all configuration:
    ```bash
    sudo systemctl disable getty@tty1.service
    ```
-4. **Disable Display Manager (if installed)**
+
+4. **Disable the Getty Service to avoid ttyS' Port Conflict**
+```bash
+sudo systemctl stop serial-getty@ttyS2.service
+sudo systemctl disable serial-getty@ttyS2.service
+sudo systemctl mask serial-getty@ttyS2.service
+```
+5. **Disable Display Manager (if installed)**
 
 If you have LightDM or another display manager running, disable it:
 
@@ -738,12 +913,6 @@ If you have gdm3 or another display manager running, disable it:
 ```bash
 sudo systemctl stop gdm3
 sudo systemctl disable gdm3
-```
-5. **Disable the Getty Service to avoid ttyS' Port Conflict**
-```bash
-sudo systemctl stop serial-getty@ttyS2.service
-sudo systemctl disable serial-getty@ttyS2.service
-sudo systemctl mask serial-getty@ttyS2.service
 ```
    
 6. **Complete System Reboot**
@@ -811,6 +980,36 @@ sudo systemctl status backend.service
 sudo systemctl status update.service
 ```
 
+### Check GPU is Initialized or Not
+```bash
+export DISPLAY=:0
+glxinfo | grep -E "OpenGL renderer|OpenGL version"
+```
+
+### Watch GPU Load
+```bash
+watch -n 1 cat /sys/class/devfreq/*.gpu/load
+```
+
+### Check active virtual terminal (DISPLAY TTY)
+```bash
+fgconsole
+```
+### See all TTYs and what’s running on them
+```bash
+w
+```
+### To switch the screen back to tty1
+```bash
+sudo chvt 1
+```
+
+### If you get a permission error, run it explicitly as root:
+```bash
+sudo su
+chvt 1
+exit
+```
 ---
 
 
