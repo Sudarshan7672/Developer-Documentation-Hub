@@ -896,8 +896,16 @@ sudo cp /usr/share/plymouth/themes/spinner/watermark.png \
 ```
 Now add your image to this directory from loacl machine to remote machine using ssh
 ```bash
-scp ~/Downloads/watermark.png radxa@192.168.1.:/usr/share/plymouth/themes/spinner/watermark.png
+scp ~/Downloads/watermark.png radxa@192.168.1.:/home/radxa/watermark.png
 ```
+Now ssh into radxa and Move the file with sudo
+```bash
+sudo mv /home/radxa/watermark.png /usr/share/plymouth/themes/spinner/watermark.png
+```
+```bash
+sudo chmod 644 /usr/share/plymouth/themes/spinner/watermark.png
+```
+
 **Disable the Boot Screen Logs**
 ```bash
 sudo nano /boot/extlinux/extlinux.conf
