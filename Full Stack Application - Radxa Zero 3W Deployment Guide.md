@@ -729,7 +729,7 @@ scp ~/Downloads/update.png radxa@192.168.1.:/home/radxa/splash/update.png
 
 **Sometime the Ping is not permitted on Some OS. For ping permissions run this comnmand**
 ```bash
-sudo setcap cap_net_rawtp /bin/ping
+sudo setcap cap_net_raw+ep /bin/ping
 ```
 ---
 
@@ -781,6 +781,17 @@ nano /home/radxa/.bash_profile
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     exec startx -- -nocursor
 fi
+```
+
+### Disable AIC8800 Bluetooth Service
+```bash
+sudo systemctl stop aic8800-bluetooth.service
+sudo systemctl disable aic8800-bluetooth.service
+sudo systemctl mask aic8800-bluetooth.service
+```
+Kill any remaining Bluetooth attach service
+```bash
+sudo pkill hciattach
 ```
 
 
