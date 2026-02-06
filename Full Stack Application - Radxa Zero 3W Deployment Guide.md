@@ -709,6 +709,18 @@ main
 sudo chmod +x update.sh
 cd ..
 ```
+**Now Create the version file to maintain the verison**
+```bash
+sudo nano .version
+```
+paste this
+```bash
+0.0.0
+```
+save the file and update its permission
+```bash
+chmod +x .version
+```
 **Create a directory and add the update splash image**
 ```bash
 sudo mkdir -p /home/radxa/splash
