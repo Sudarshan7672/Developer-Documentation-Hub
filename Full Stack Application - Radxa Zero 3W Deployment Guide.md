@@ -884,6 +884,32 @@ To:
 console=tty1
 ```
 
+### Update the Boot Logo
+**Navigate the Plymouth Theme Directory**
+```bash
+cd /usr/share/plymouth/themes/spinner/
+```
+Check for watermark.png - this is the ubutnu image, backup it for safety
+```bash
+sudo cp /usr/share/plymouth/themes/spinner/watermark.png \
+        /usr/share/plymouth/themes/spinner/watermark.png.bak
+```
+Now add your image to this directory from loacl machine to remote machine using ssh
+```bash
+scp ~/Downloads/watermark.png radxa@192.168.1.:/usr/share/plymouth/themes/spinner/watermark.png
+```
+**Disable the Boot Screen Logs**
+```bash
+sudo nano /boot/extlinux/extlinux.conf
+```
+```bash
+remove the console=tty1 from the append Line
+```
+**Now Update the System Initramfs**
+```bash
+sudo update-initramfs -u
+```
+
 ## 6. Final Deployment Steps
 
 After completing all configuration:
