@@ -39,6 +39,7 @@ sudo apt install -y \
   build-essential \
   mesa-utils \
   fuse \
+  fbi \
   --no-install-recommends
 ```
 
