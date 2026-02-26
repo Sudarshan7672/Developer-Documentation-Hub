@@ -1,6 +1,7 @@
 # Flash Radxa Zero 3W(RK3566) eMMC using rkdeveloptool (Linux)
 
 This guide explains how to flash the Woobly OS to the Radxa Zero 3W eMMC using rkdeveloptool on Linux.
+Refer the Documentation - https://docs.radxa.com/en/zero/zero3/low-level-dev/rkdeveloptool
 
 ## 🧰 Requirements
 
@@ -45,13 +46,13 @@ rk356x_spl_loader_ddr1056_v1.12.109_no_check_todly.bin
 ## 3️⃣ Download OS image (Woobly)
 
 ```
-https://drive.google.com/file/d/1CP2R2Ron-aQa25aQiESUScF8QxoLTuyY/view?usp=sharing
+https://......
 ```
 
 After download:
 
 ```
-Woobly_Master_OS_V1.img
+OS_Name.img
 ```
 
 ---
@@ -95,7 +96,7 @@ Downloading bootloader succeeded
 ## 6️⃣ Flash OS to eMMC
 
 ```bash
-sudo rkdeveloptool wl 0 Woobly_Master_OS_V1.img
+sudo rkdeveloptool wl 0 OS_Name.img
 ```
 
 This writes the full image to eMMC starting at sector 0. Wait until completion:
