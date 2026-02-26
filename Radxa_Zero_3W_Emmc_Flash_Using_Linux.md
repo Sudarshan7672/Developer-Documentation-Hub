@@ -153,7 +153,7 @@ Reconnect device.
 ```bash
 rkdeveloptool ld
 sudo rkdeveloptool db rk356x_spl_loader_ddr1056_v1.12.109_no_check_todly.bin
-sudo rkdeveloptool wl 0 Woobly_Master_OS_V1.img
+sudo rkdeveloptool wl 0 OS_Name.img
 sudo rkdeveloptool rd
 ```
 
