@@ -43,7 +43,7 @@ rk356x_spl_loader_ddr1056_v1.12.109_no_check_todly.bin
 
 ---
 
-## 3️⃣ Download OS image (Woobly)
+## 3️⃣ Download OS image
 
 ```
 https://......
