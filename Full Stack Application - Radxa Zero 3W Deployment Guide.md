@@ -40,6 +40,14 @@ sudo apt install -y \
   mesa-utils \
   fuse \
   fbi \
+  iputils-ping \
+  speedtest-cli \
+  curl \
+  dnsutils \
+  traceroute \
+  net-tools \
+  wireless-tools \
+  iw \
   --no-install-recommends
 ```
 
