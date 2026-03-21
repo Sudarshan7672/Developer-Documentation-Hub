@@ -149,17 +149,27 @@ Install
 ```bash
 sudo npm install pm2 -g
 ```
-Start the app using pm2:
+#### Start the app using pm2 with timestamps in logs
 ```bash
-pm2 start npm --name "main-app" -- start
+pm2 start server.js --name "server" --log-date-format="YYYY-MM-DD HH:mm:ss"
 ```
-To ensure it starts on reboot:
+#### If app already running, restart with timestamp format
 ```bash
-pm2 startup
+pm2 restart server --log-date-format="YYYY-MM-DD HH:mm:ss"
+```
+#### Save PM2 process list
+```bash
 pm2 save
 ```
+#### Enable PM2 to start on system reboot
 ```bash
-pm2 restart main-app
+pm2 startup
+```
+#### After running pm2 startup, it will give a command like:
+#### sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
+#### Run that command, then again run:
+```bash
+pm2 save
 ```
 
 ## Step 5: Test and Restart Nginx
